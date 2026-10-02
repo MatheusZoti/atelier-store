@@ -1,26 +1,250 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   Design tokens
+   Monochrome, editorial, image-led. Type stays small and quiet so imagery
+   carries the page. Every utility is generated from these tokens
+   (e.g. --color-ink → text-ink / bg-ink / border-ink).
+   ========================================================================== */
+
+@theme {
+  /* Colour: the default Tailwind palette is removed so only these exist. */
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  --color-canvas: #ffffff; /* page background */
+  --color-ink: #000000; /* primary text, primary buttons */
+  --color-ink-soft: #2b2b2b; /* primary button hover */
+  --color-muted: #6e6e6e; /* captions, inactive tabs, field placeholders (AA on canvas + surface) */
+  --color-surface: #f8f8f8; /* product image tiles */
+  --color-surface-strong: #ededed; /* hover / pressed surface */
+  --color-line: #dcdcdc; /* hairline borders, dividers, field underlines */
+  --color-sale: #9e1b1f; /* price reductions, errors */
+  --color-success: #1f5a3a; /* confirmations */
+
+  /* Type scale. Small, quiet UI text; headings are modest and often uppercase.
+     Large sizes are reserved for statements and rare editorial moments. */
+  --text-caption: 0.6875rem; /* 11px: tile badges, legal */
+  --text-caption--line-height: 1.4;
+
+  --text-label: 0.75rem; /* 12px: buttons, nav, section labels */
+  --text-label--line-height: 1.3;
+  --text-label--letter-spacing: 0.04em;
+
+  --text-body-sm: 0.8125rem; /* 13px: product cards, meta, footer links */
+  --text-body-sm--line-height: 1.5;
+
+  --text-body: 0.9375rem; /* 15px: default */
+  --text-body--line-height: 1.6;
+
+  --text-lead: 1rem; /* 16px: descriptions, accordion rows, CTA links */
+  --text-lead--line-height: 1.6;
+
+  --text-title: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem); /* "You may also like" */
+  --text-title--line-height: 1.25;
+
+  --text-statement: clamp(1.5rem, 1.2rem + 1.2vw, 2rem); /* newsletter / brand statements */
+  --text-statement--line-height: 1.45;
+
+  --text-display: clamp(2.25rem, 1.5rem + 3vw, 4rem); /* rare editorial headlines */
+  --text-display--line-height: 1.05;
+  --text-display--letter-spacing: -0.01em;
+
+  --tracking-label: 0.04em;
+
+  /* Spacing: fluid page gutter (≈5vw, 64px at 1280) and section rhythm. */
+  --spacing-gutter: clamp(1rem, 5vw, 4rem);
+  --spacing-stack: clamp(1.5rem, 1rem + 2vw, 3rem);
+  --spacing-section: clamp(4rem, 2.5rem + 5vw, 7.5rem);
+
+  /* Containers (max-w-page, max-w-content, max-w-prose). */
+  --container-page: 100rem;
+  --container-content: 80rem;
+  --container-prose: 40rem;
+
+  /* Media ratios (aspect-product, aspect-hero, aspect-wide). */
+  --aspect-product: 3 / 4;
+  --aspect-hero: 16 / 9;
+  --aspect-wide: 21 / 9;
+
+  /* Motion: slow and quiet. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --default-transition-duration: 250ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
 }
 
+/* Font families come from next/font variables set on <html> in layout.tsx. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-eb-garamond), ui-serif, Georgia, serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ==========================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-line);
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-body text-ink antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background-color: var(--color-ink);
+    color: var(--color-canvas);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ==========================================================================
+   Components
+   Lower precedence than utilities, so className overrides always win.
+   ========================================================================== */
+
+@layer components {
+  /* Layout */
+  .container-page {
+    @apply mx-auto w-full max-w-page px-gutter;
+  }
+  .container-content {
+    @apply mx-auto w-full max-w-content px-gutter;
+  }
+  .container-prose {
+    @apply mx-auto w-full max-w-prose px-gutter;
+  }
+  .section {
+    @apply py-section;
+  }
+
+  /* Type */
+  .eyebrow {
+    /* Section label: "SERVICES", footer column heads. */
+    @apply text-label font-semibold uppercase;
+  }
+  .heading-section {
+    @apply text-lead font-semibold uppercase;
+  }
+  .heading-title {
+    @apply text-title font-normal uppercase;
+  }
+  .heading-statement {
+    @apply text-statement font-light;
+  }
+  .heading-display {
+    @apply text-display font-normal;
+  }
+
+  /* Buttons: square, solid or 1px outline, small semibold uppercase label. */
+  .btn {
+    @apply inline-flex h-12 cursor-pointer items-center justify-center gap-2 border border-transparent px-6 text-label font-semibold whitespace-nowrap uppercase transition-colors;
+    @apply disabled:pointer-events-none disabled:opacity-40 aria-disabled:pointer-events-none aria-disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply bg-ink text-canvas hover:bg-ink-soft;
+  }
+  .btn-secondary {
+    @apply border-ink bg-transparent text-ink hover:bg-ink hover:text-canvas;
+  }
+  /* Solid light button on dark imagery. */
+  .btn-on-image {
+    @apply bg-white text-black hover:bg-surface-strong;
+  }
+  /* Outline light button on dark imagery. */
+  .btn-on-image-outline {
+    @apply border-white bg-transparent text-white hover:bg-white hover:text-black;
+  }
+  .btn-sm {
+    @apply h-10 px-5;
+  }
+  .btn-block {
+    @apply w-full;
+  }
+  /* Round icon control (carousel arrows, close). The only rounded shape. */
+  .btn-icon {
+    @apply inline-flex size-10 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-surface-strong;
+  }
+
+  /* Links: underlined with generous offset; underline fades on hover. */
+  .link {
+    @apply underline decoration-current decoration-1 underline-offset-[0.3em] transition-colors hover:decoration-transparent;
+  }
+  .link-cta {
+    @apply text-lead underline decoration-current decoration-1 underline-offset-[0.35em] transition-colors hover:decoration-transparent;
+  }
+  .link-quiet {
+    @apply no-underline decoration-1 underline-offset-[0.3em] hover:underline;
+  }
+
+  /* Forms: underline-only fields. */
+  .field {
+    @apply w-full border-b bg-transparent py-3 text-lead placeholder:text-muted focus:border-ink focus:outline-none;
+  }
+
+  /* Product presentation: full-bleed grid, hairline gaps, light tiles. */
+  .media-frame {
+    @apply relative overflow-hidden bg-surface;
+  }
+  .product-grid {
+    @apply grid grid-cols-2 gap-x-0.5 gap-y-10 md:grid-cols-3 xl:grid-cols-4;
+  }
+
+  /* Dark scope (footer, newsletter band). Re-maps tokens so every primitive
+     inside inverts. Add bg-canvas (or use <Section inverse>) for the black fill. */
+  .theme-inverse {
+    --color-canvas: #000000;
+    --color-ink: #ffffff;
+    --color-ink-soft: #d9d9d9;
+    --color-muted: #9a9a9a;
+    --color-surface: #141414;
+    --color-surface-strong: #262626;
+    --color-line: #5c5c5c;
+    color: var(--color-ink);
+  }
+}
+
+/* Horizontal product rail: native scroll with snap and a thin hairline scrollbar. */
+@utility scroll-rail {
+  display: flex;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink) var(--color-line);
 }
