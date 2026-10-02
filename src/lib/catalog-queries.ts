@@ -4,10 +4,14 @@ import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/db";
-import { categories, products } from "@/db/schema";
+import { categories, productImages, products } from "@/db/schema";
 import type { Category, Product } from "@/lib/catalog";
 
-const withRelations = { category: true, stock: true } as const;
+const withRelations = {
+  category: true,
+  stock: true,
+  images: { orderBy: asc(productImages.position) },
+} as const;
 const productOrder = [desc(products.createdAt), asc(products.slug)];
 
 type ProductRow = NonNullable<Awaited<ReturnType<typeof findProduct>>>;
@@ -16,7 +20,13 @@ function findProduct(slug: string) {
   return db.query.products.findFirst({ where: eq(products.slug, slug), with: withRelations });
 }
 
-function toProduct(row: ProductRow): Product {
+/** Maps a row to a `Product`. Products without images are skipped (returns undefined). */
+function toProduct(row: ProductRow): Product | undefined {
+  const images = row.images.map((image) => ({ src: image.url, alt: image.alt }));
+  if (images.length === 0) {
+    console.warn(`Product "${row.slug}" has no images and is hidden from the storefront.`);
+    return undefined;
+  }
   return {
     slug: row.slug,
     name: row.name,
@@ -25,7 +35,8 @@ function toProduct(row: ProductRow): Product {
     categoryName: row.category.name,
     colour: row.colour,
     stock: row.stock?.quantity ?? 0,
-    image: { src: row.imageUrl, alt: row.imageAlt },
+    image: images[0],
+    images,
     description: row.description,
     details: row.details,
     materials: row.materials,
@@ -55,7 +66,7 @@ export async function getProductsBySlugs(slugs: string[]): Promise<Product[]> {
     where: inArray(products.slug, slugs),
     with: withRelations,
   });
-  return inSlugOrder(rows.map(toProduct), slugs);
+  return inSlugOrder(rows.flatMap((row) => toProduct(row) ?? []), slugs);
 }
 
 /** Deduplicated per request, so metadata and the page share one query. */
@@ -93,5 +104,5 @@ export async function getRelatedProducts(product: Product, limit = 6): Promise<P
         })
       : [];
 
-  return [...same, ...rest].map(toProduct);
+  return [...same, ...rest].flatMap((row) => toProduct(row) ?? []);
 }

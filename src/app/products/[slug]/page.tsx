@@ -45,7 +45,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
-    image: product.image.src,
+    image: product.images.map((image) => image.src),
     description: product.description,
     category,
     color: product.colour,
@@ -66,7 +66,7 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
         />
 
-        <ProductGallery image={product.image} />
+        <ProductGallery images={product.images} />
 
         <Container className="grid gap-x-12 gap-y-10 pt-10 pb-section lg:grid-cols-12 lg:pt-14">
           {/* Summary: name, price, colour, stock */}

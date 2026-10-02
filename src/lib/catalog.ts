@@ -16,7 +16,10 @@ export type Product = {
   colour: string;
   /** Units available. 0 = out of stock. */
   stock: number;
+  /** Main image (the first of `images`). */
   image: Img;
+  /** All images in display order. */
+  images: Img[];
   description: string;
   details: string[];
   materials: string;

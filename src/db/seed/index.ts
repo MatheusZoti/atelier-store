@@ -2,7 +2,7 @@
 // Usage: npm run db:seed
 import { loadEnvConfig } from "@next/env";
 
-import { categories, products, productStock } from "../schema";
+import { categories, productImages, products, productStock } from "../schema";
 import { categories as seedCategories, products as seedProducts } from "./data";
 
 // Load .env / .env.local before `@/db` is imported: it creates the Neon client on import.
@@ -49,8 +49,6 @@ async function main() {
           priceCents: product.price,
           colour: product.colour,
           badge: product.badge ?? null,
-          imageUrl: product.image.src,
-          imageAlt: product.image.alt,
           categoryId,
         };
         return db
@@ -65,6 +63,28 @@ async function main() {
 
   await db.batch(
     nonEmpty(
+      seedProducts.flatMap((product) =>
+        product.images.map((image, position) => {
+          const values = {
+            productId: productIds.get(product.slug)!,
+            position,
+            url: image.src,
+            alt: image.alt,
+          };
+          return db
+            .insert(productImages)
+            .values(values)
+            .onConflictDoUpdate({
+              target: [productImages.productId, productImages.position],
+              set: { url: values.url, alt: values.alt },
+            });
+        }),
+      ),
+    ),
+  );
+
+  await db.batch(
+    nonEmpty(
       seedProducts.map((product) => {
         const values = { productId: productIds.get(product.slug)!, quantity: product.stock };
         return db
@@ -76,7 +96,7 @@ async function main() {
   );
 
   console.log(
-    `Seeded ${categoryIds.size} categories, ${productIds.size} products and their stock.`,
+    `Seeded ${categoryIds.size} categories, ${productIds.size} products with their images and stock.`,
   );
 }
 

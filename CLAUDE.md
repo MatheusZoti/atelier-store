@@ -38,13 +38,21 @@ Env vars (see `.env.example`, copy to `.env.local`): `DATABASE_URL` (Neon pooled
 - Use Drizzle for all database access, through `db` from `src/db`.
 - Schema lives in `src/db/schema` (see the schema barrel note below).
 - Never write raw SQL (including Drizzle's `sql` template or hand-edited migration files) unless explicitly asked.
+- Schema changes: edit the schema, `db:generate`, review the SQL, `db:migrate`. Don't use `db:push` on the real database. `db:generate` doesn't connect, so a placeholder `DATABASE_URL` is enough for it.
+- Catalog tables (`src/db/schema/catalog.ts`): `categories` 1─* `products` (`onDelete: restrict`), `products` 1─* `product_images` and 1─1 `product_stock` (both `onDelete: cascade`). Stock stays in its own table, not a column on `products`; a product with no stock row counts as 0.
+- Product images live only in `product_images` (`url`, `alt`, `position`, unique per product+position); the lowest `position` is the main image. A product with no image rows is hidden from the storefront.
+- Money is integer cents (`price_cents`), USD. Rows are addressed by unique `slug`; ids are uuids.
+- `product_stock.quantity` has no `CHECK (>= 0)` because that needs `sql`. Keep it non-negative in app code.
+- Keep the catalog minimal until asked: no variants, carts, orders, reviews or wishlists.
+- Seed (`src/db/seed`) upserts by slug with explicit `set` values (no `excluded.*`, which needs `sql`) inside `db.batch([...])`, which is atomic on neon-http. Keep it idempotent. It loads env first and then dynamically imports `@/db`, because `db` reads `DATABASE_URL` when imported.
+- `next build` queries the catalog, so a fresh database needs `db:migrate` and `db:seed` before a build succeeds.
 
 ## Architecture
 
 Request flow for auth: `authClient` (`src/lib/auth-client.ts`, same-origin) → `src/app/api/auth/[...all]/route.ts` (`toNextJsHandler(auth)`) → `auth` in `src/lib/auth.ts` → `drizzleAdapter(db, { provider: "pg", schema })` → `db` in `src/db/index.ts` → Neon.
 
 - **Single schema barrel.** `src/db/schema/index.ts` re-exports every table file. It is consumed by three things: the runtime `db` client, the Better Auth Drizzle adapter, and drizzle-kit (`drizzle.config.ts` points at the `src/db/schema` folder). New tables go in their own file in that folder and must be re-exported from the barrel.
-- **Better Auth tables are generated, not handwritten.** `npm run auth:generate` produces `src/db/schema/auth.ts` from the config in `src/lib/auth.ts`; the barrel's `export * from "./auth"` is commented out until it exists. Re-run it after adding Better Auth plugins or options that change tables, then `db:generate` + `db:migrate`. Until the auth tables exist, the build logs a "Drizzle schema mismatch" error and auth requests fail.
+- **Better Auth tables are generated, not handwritten.** `npm run auth:generate` produces `src/db/schema/auth.ts` (`user`, `session`, `account`, `verification`) from the config in `src/lib/auth.ts`; never edit it by hand. Re-run it after adding Better Auth plugins or options that change tables, then `db:generate` + `db:migrate`. If the generated schema and the database drift apart, the build logs a "Drizzle schema mismatch" error.
 - **Env access.** Server code reads env through `env` in `src/lib/env.ts`, whose lazy getters throw a named error when a variable is missing. It is server-only; never import it (or `src/lib/auth.ts`, `src/db`) from client components.
 - **Env loading differs per tool.** Next.js loads `.env*` itself; drizzle-kit loads it via `@next/env`'s `loadEnvConfig` in `drizzle.config.ts`; the `auth` CLI loads `.env` / `.env.local` through its own config loader.
 - **Neon HTTP driver** (`drizzle-orm/neon-http`): stateless, no interactive transactions. Better Auth's Postgres path does not need them (adapter `transaction` defaults to false). Anything that needs `db.transaction` (e.g. checkout/order writes) requires switching `src/db/index.ts` to `drizzle-orm/neon-serverless` with a WebSocket `Pool`.
@@ -70,10 +78,10 @@ Request flow for auth: `authClient` (`src/lib/auth-client.ts`, same-origin) → 
 
 ## Storefront data and images
 
-- Products, categories and stock are in Postgres: tables `categories`, `products` (FK `category_id`, price in cents, `details` text[]) and `product_stock` (1:1, `quantity`) in `src/db/schema/catalog.ts`. Sample rows come from `src/db/seed/data.ts` via `npm run db:seed`.
+- Products, categories and stock are in Postgres (see Database). Sample rows come from `src/db/seed/data.ts`.
 - Read them only through `src/lib/catalog-queries.ts` (server-only), which maps rows to the `Product` / `Category` shapes in `src/lib/catalog.ts`. `catalog.ts` stays DB-free: types, `formatPrice`, `getStockState`, editorial content (hero, collections, story, services) and the curated home slug lists (`homeCategorySlugs`, `newArrivalSlugs`, `finishingTouchSlugs`; missing slugs are skipped).
 - Sample images come from Unsplash's CDN through `next/image`. `images.remotePatterns` in `next.config.ts` pins the exact query string (`?w=2400&q=80&fm=jpg&fit=max`) that `unsplash()` in `catalog.ts` appends; a different query returns 400. `images.qualities` is `[75]` (Next 16 requires an allowlist).
 - Stock state (in stock / only N left / out of stock) comes from `getStockState()`; the low-stock threshold is `LOW_STOCK_THRESHOLD`.
-- `/` and `/products/[slug]` are prerendered from the DB at build time with `revalidate = 60` (ISR). Product slugs come from `generateStaticParams`; new products render on first visit and unknown slugs 404. The product gallery shows the photo plus a scaled close-up crop of the same image, since sample products have one photo each.
+- `/` and `/products/[slug]` are prerendered from the DB at build time with `revalidate = 60` (ISR). Product slugs come from `generateStaticParams`; new products render on first visit and unknown slugs 404. The product gallery shows every image in `product.images`; with only one (as all sample products have for now) it shows the photo plus a scaled close-up crop of it.
 - "Add to bag" is not wired to anything yet (no cart). Collection, bag, account and service links still point to routes that don't exist.
 - The header's `overlay` variant sits on top of a full-bleed hero; other pages should render `<SiteHeader />` without it.

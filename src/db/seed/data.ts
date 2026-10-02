@@ -14,7 +14,8 @@ export type SeedProduct = {
   colour: string;
   /** Units available. 0 = out of stock. */
   stock: number;
-  image: Img;
+  /** In display order; the first is the main image. */
+  images: Img[];
   description: string;
   details: string[];
   materials: string;
@@ -56,7 +57,7 @@ export const products: SeedProduct[] = [
     colour: "Cognac",
     stock: 12,
     badge: "New",
-    image: unsplash("1598532163257-ae3c6b2524b6", "Cognac woven leather tote with a gold chain strap"),
+    images: [unsplash("1598532163257-ae3c6b2524b6", "Cognac woven leather tote with a gold chain strap")],
     description:
       "A soft, generous tote hand-woven from wide strips of vegetable-tanned leather. A detachable chain strap lets it move from shoulder to hand.",
     details: [
@@ -75,7 +76,7 @@ export const products: SeedProduct[] = [
     category: "handbags",
     colour: "Burgundy",
     stock: 7,
-    image: unsplash("1575032617751-6ddec2089882", "Burgundy croc-effect leather bag held by its strap"),
+    images: [unsplash("1575032617751-6ddec2089882", "Burgundy croc-effect leather bag held by its strap")],
     description:
       "A compact, sculpted shoulder bag in embossed croc-effect leather, closed with a polished sculptural clasp.",
     details: [
@@ -94,7 +95,7 @@ export const products: SeedProduct[] = [
     category: "handbags",
     colour: "Khaki",
     stock: 1,
-    image: unsplash("1612902456551-333ac5afa26e", "Khaki leather satchel with a push-lock clasp in raking sunlight"),
+    images: [unsplash("1612902456551-333ac5afa26e", "Khaki leather satchel with a push-lock clasp in raking sunlight")],
     description:
       "A neatly structured satchel with a push-lock front flap, sized for a day of essentials and finished with a fine leather shoulder strap.",
     details: [
@@ -113,7 +114,7 @@ export const products: SeedProduct[] = [
     category: "backpacks",
     colour: "Rosewood",
     stock: 9,
-    image: unsplash("1622560480605-d83c853bc5c3", "Cognac leather backpack with front zip pocket"),
+    images: [unsplash("1622560480605-d83c853bc5c3", "Cognac leather backpack with front zip pocket")],
     description:
       "A rounded backpack in waxed full-grain leather that softens and darkens with use. Padded straps and a laptop sleeve make it an everyday piece.",
     details: [
@@ -133,7 +134,7 @@ export const products: SeedProduct[] = [
     colour: "Teal",
     stock: 14,
     badge: "New",
-    image: unsplash("1560343090-f0409e92791a", "Teal suede derby shoe on a pastel pink set"),
+    images: [unsplash("1560343090-f0409e92791a", "Teal suede derby shoe on a pastel pink set")],
     description:
       "A brogued derby in saturated teal suede, built on a stacked leather heel and a lightly padded footbed for all-day wear.",
     details: [
@@ -152,7 +153,7 @@ export const products: SeedProduct[] = [
     category: "ready-to-wear",
     colour: "Rust",
     stock: 6,
-    image: unsplash("1591047139829-d91aecb6caea", "Rust bomber jacket on a hanger"),
+    images: [unsplash("1591047139829-d91aecb6caea", "Rust bomber jacket on a hanger")],
     description:
       "A lightweight bomber in a water-repellent technical twill, cut with a relaxed body, ribbed trims and a utility sleeve pocket.",
     details: [
@@ -171,7 +172,7 @@ export const products: SeedProduct[] = [
     category: "ready-to-wear",
     colour: "Black",
     stock: 0,
-    image: unsplash("1520975954732-35dd22299614", "Man in a black leather biker jacket crouching on a rooftop ledge"),
+    images: [unsplash("1520975954732-35dd22299614", "Man in a black leather biker jacket crouching on a rooftop ledge")],
     description:
       "Our signature biker jacket in supple lambskin, with an asymmetric zip, notched lapels and a belted hem. Cut close to the body.",
     details: [
@@ -190,7 +191,7 @@ export const products: SeedProduct[] = [
     category: "backpacks",
     colour: "Navy",
     stock: 22,
-    image: unsplash("1553062407-98eeb64c6a62", "Navy nylon backpack standing on a pale floor"),
+    images: [unsplash("1553062407-98eeb64c6a62", "Navy nylon backpack standing on a pale floor")],
     description:
       "A clean, minimal backpack in recycled technical nylon with leather trims — light enough for travel, structured enough for the office.",
     details: [
@@ -209,7 +210,7 @@ export const products: SeedProduct[] = [
     category: "watches",
     colour: "Rose gold",
     stock: 4,
-    image: unsplash("1522312346375-d1a52e2b99b3", "Rose-gold watch with a leather strap against teal velvet"),
+    images: [unsplash("1522312346375-d1a52e2b99b3", "Rose-gold watch with a leather strap against teal velvet")],
     description:
       "A slim dress watch with a sunray dial and a rose-gold case, worn on a soft leather strap with a pin buckle.",
     details: [
@@ -228,7 +229,7 @@ export const products: SeedProduct[] = [
     category: "jewelry",
     colour: "Gold",
     stock: 18,
-    image: unsplash("1617038220319-276d3cfab638", "Gold sculpted earrings in soft light and shadow"),
+    images: [unsplash("1617038220319-276d3cfab638", "Gold sculpted earrings in soft light and shadow")],
     description:
       "Twisted, organic hoops cast in gold vermeil — substantial in look, light to wear.",
     details: ["Gold vermeil", "Hinged hoop closure", "Diameter 2.2 cm", "Sold as a pair"],
@@ -243,7 +244,7 @@ export const products: SeedProduct[] = [
     colour: "Sapphire",
     stock: 2,
     badge: "Limited",
-    image: unsplash("1535632066927-ab7c9ab60908", "Crystal drop earrings resting on a monstera leaf"),
+    images: [unsplash("1535632066927-ab7c9ab60908", "Crystal drop earrings resting on a monstera leaf")],
     description:
       "Statement drop earrings set with clear crystal baguettes around a deep blue pear-cut centre stone. Made in a limited run.",
     details: ["Hand-set crystal", "Pear-cut centre stone", "Length 4.5 cm", "Post back"],
@@ -257,7 +258,7 @@ export const products: SeedProduct[] = [
     category: "jewelry",
     colour: "Gold",
     stock: 11,
-    image: unsplash("1611085583191-a3b181a88401", "Fine gold chain with a single pearl worn at the collarbone"),
+    images: [unsplash("1611085583191-a3b181a88401", "Fine gold chain with a single pearl worn at the collarbone")],
     description:
       "A single freshwater pearl suspended from a fine gold chain — an everyday piece that layers easily.",
     details: ["Freshwater pearl", "Adjustable 40–45 cm chain", "Lobster clasp"],
@@ -271,7 +272,7 @@ export const products: SeedProduct[] = [
     category: "jewelry",
     colour: "Gold",
     stock: 8,
-    image: unsplash("1599643478518-a784e5dc4c8f", "Layered gold chains with a crescent and a blue stone pendant"),
+    images: [unsplash("1599643478518-a784e5dc4c8f", "Layered gold chains with a crescent and a blue stone pendant")],
     description:
       "Two fine chains worn together: one with a crescent charm, one with a faceted blue stone.",
     details: ["Two-strand design", "Crescent and stone charms", "Lengths 42 and 48 cm"],
