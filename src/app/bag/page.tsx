@@ -3,22 +3,26 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { BagLineControls } from "@/components/bag/bag-line-controls";
+import { FitBagNotice } from "@/components/bag/fit-bag-notice";
 import { PageIntro } from "@/components/layout/page-intro";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Button, ButtonLink, Container, Heading, MediaFrame, TextLink } from "@/components/ui";
 import { formatPrice } from "@/lib/catalog";
-import { type BagLine, getBag, MAX_LINE_QUANTITY } from "@/lib/cart";
+import { type BagLine, getBag } from "@/lib/cart";
+import { MAX_LINE_QUANTITY } from "@/lib/stock";
 
 export const metadata: Metadata = {
   title: "Shopping bag | Atelier Store",
   robots: { index: false },
 };
 
-/** Why a line can't grow, if stock (not the per-line cap) is what stops it. */
-function availabilityNote({ quantity, limit }: BagLine) {
-  if (limit === 0) return { text: "This piece is now out of stock. Please remove it.", alert: true };
-  if (quantity > limit) return { text: `Only ${limit} available. Please lower the quantity.`, alert: true };
+/** A stock problem with the line, or why it can't grow when stock (not the per-line cap) stops it. */
+function availabilityNote({ quantity, limit, issue }: BagLine) {
+  if (issue?.kind === "out-of-stock") return { text: "This piece is now out of stock. Please remove it.", alert: true };
+  if (issue?.kind === "over-stock") {
+    return { text: `Only ${issue.available} available. Please lower the quantity.`, alert: true };
+  }
   if (quantity === limit && limit < MAX_LINE_QUANTITY) {
     return { text: limit === 1 ? "Last piece available" : `Only ${limit} available`, alert: false };
   }
@@ -83,7 +87,8 @@ export default async function BagPage() {
             </div>
           ) : (
             <div className="mt-12 grid gap-x-12 gap-y-12 lg:grid-cols-12">
-              <section aria-label="Items in your bag" className="lg:col-span-7 xl:col-span-8">
+              <section aria-label="Items in your bag" className="flex flex-col gap-6 lg:col-span-7 xl:col-span-8">
+                {bag.hasIssues && <FitBagNotice />}
                 <ul role="list" className="border-t">
                   {bag.lines.map((line) => (
                     <BagItem key={line.product.slug} line={line} />
@@ -115,7 +120,11 @@ export default async function BagPage() {
                   <Button block disabled>
                     Checkout
                   </Button>
-                  <p className="text-center text-caption text-muted">Online checkout opens soon.</p>
+                  <p className="text-center text-caption text-muted">
+                    {bag.hasIssues
+                      ? "Please update your bag before checking out."
+                      : "Online checkout opens soon."}
+                  </p>
                 </div>
                 <ul role="list" className="flex flex-col gap-3 border-t pt-6 text-body-sm">
                   <li>Complimentary shipping, exchanges and returns.</li>

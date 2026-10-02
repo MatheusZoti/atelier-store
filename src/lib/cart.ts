@@ -10,12 +10,10 @@ import { cartItems, carts, productStock, products } from "@/db/schema";
 import type { Product } from "@/lib/catalog";
 import { toProduct, withRelations } from "@/lib/catalog-queries";
 import { getSession } from "@/lib/session";
+import { getLineIssue, lineLimit, type LineIssue } from "@/lib/stock";
 
 const CART_COOKIE = "cart_id";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Most units of one piece a bag line holds, even when more are in stock. */
-export const MAX_LINE_QUANTITY = 10;
 
 /** A customer-facing reason a bag change was refused. */
 export class CartError extends Error {}
@@ -25,15 +23,19 @@ export type BagLine = {
   quantity: number;
   /** Most this line can hold right now: stock, capped at MAX_LINE_QUANTITY. */
   limit: number;
+  /** Set when stock has dropped below the line since it was added. */
+  issue?: LineIssue;
 };
 
-export type Bag = { lines: BagLine[]; count: number; subtotal: number };
+export type Bag = {
+  lines: BagLine[];
+  count: number;
+  subtotal: number;
+  /** True when any line has an `issue`; checkout must wait until it is fixed. */
+  hasIssues: boolean;
+};
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-function lineLimit(stock: number) {
-  return Math.max(0, Math.min(stock, MAX_LINE_QUANTITY));
-}
 
 async function guestCartId() {
   const id = (await cookies()).get(CART_COOKIE)?.value;
@@ -119,7 +121,7 @@ export async function getBagCount(): Promise<number> {
 /** The visitor's bag with current product data, oldest line first. */
 export async function getBag(): Promise<Bag> {
   const cartId = await findCartId();
-  if (!cartId) return { lines: [], count: 0, subtotal: 0 };
+  if (!cartId) return { lines: [], count: 0, subtotal: 0, hasIssues: false };
 
   const rows = await db.query.cartItems.findMany({
     where: eq(cartItems.cartId, cartId),
@@ -128,10 +130,13 @@ export async function getBag(): Promise<Bag> {
   });
   const lines = rows.flatMap((row) => {
     const product = toProduct(row.product);
-    return product ? [{ product, quantity: row.quantity, limit: lineLimit(product.stock) }] : [];
+    if (!product) return [];
+    const issue = getLineIssue(row.quantity, product.stock);
+    return [{ product, quantity: row.quantity, limit: lineLimit(product.stock), issue }];
   });
   return {
     lines,
+    hasIssues: lines.some((line) => line.issue),
     count: lines.reduce((sum, line) => sum + line.quantity, 0),
     subtotal: lines.reduce((sum, line) => sum + line.product.price * line.quantity, 0),
   };
@@ -176,6 +181,32 @@ export async function setCartQuantity(slug: string, quantity: number) {
     const where = and(eq(cartItems.cartId, cartId), eq(cartItems.productId, product.id));
     if (next > 0) await tx.update(cartItems).set({ quantity: next }).where(where);
     else await tx.delete(cartItems).where(where);
+  });
+  return countItems(cartId);
+}
+
+/**
+ * Brings every line back within current stock: lowers quantities to what is available and
+ * removes pieces that sold out. Returns the bag's new count.
+ */
+export async function fitCartToStock() {
+  const cartId = await findCartId();
+  if (!cartId) return 0;
+
+  await db.transaction(async (tx) => {
+    await lockCart(tx, cartId);
+    const lines = await tx
+      .select({ id: cartItems.id, quantity: cartItems.quantity, stock: productStock.quantity })
+      .from(cartItems)
+      .leftJoin(productStock, eq(productStock.productId, cartItems.productId))
+      .where(eq(cartItems.cartId, cartId));
+
+    for (const line of lines) {
+      const limit = lineLimit(line.stock ?? 0);
+      if (line.quantity <= limit) continue;
+      if (limit > 0) await tx.update(cartItems).set({ quantity: limit }).where(eq(cartItems.id, line.id));
+      else await tx.delete(cartItems).where(eq(cartItems.id, line.id));
+    }
   });
   return countItems(cartId);
 }

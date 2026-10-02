@@ -2,7 +2,7 @@
 
 import { refresh } from "next/cache";
 
-import { addToCart, CartError, setCartQuantity } from "@/lib/cart";
+import { addToCart, CartError, fitCartToStock, setCartQuantity } from "@/lib/cart";
 
 export type AddToBagState = {
   status?: "added" | "at-limit";
@@ -46,6 +46,17 @@ export async function updateBagQuantity(slug: string, quantity: number): Promise
   if (!Number.isFinite(quantity)) return { error: "Please choose a valid quantity." };
   try {
     const count = await setCartQuantity(slug, quantity);
+    refresh();
+    return { count };
+  } catch (error) {
+    return { error: failure(error, "We couldn't update your bag. Please try again.") };
+  }
+}
+
+/** Bag page "Update my bag": lowers lines to available stock and removes sold-out pieces. */
+export async function fitBagToStock(): Promise<BagChangeResult> {
+  try {
+    const count = await fitCartToStock();
     refresh();
     return { count };
   } catch (error) {
