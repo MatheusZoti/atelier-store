@@ -44,7 +44,7 @@ Env vars (see `.env.example`, copy to `.env.local`): `DATABASE_URL` (Neon pooled
 - Money is integer cents (`price_cents`), USD. Rows are addressed by unique `slug`; ids are uuids.
 - `product_stock.quantity` has no `CHECK (>= 0)` because that needs `sql`. Keep it non-negative in app code.
 - Keep the catalog minimal until asked: no variants, carts, orders, reviews or wishlists.
-- Seed (`src/db/seed`) upserts by slug with explicit `set` values (no `excluded.*`, which needs `sql`) inside `db.batch([...])`, which is atomic on neon-http. Keep it idempotent. It loads env first and then dynamically imports `@/db`, because `db` reads `DATABASE_URL` when imported.
+- Seed (`src/db/seed`) upserts row by row by slug with explicit `set` values (no `excluded.*`, which needs `sql`) inside one `db.transaction`, so it applies fully or not at all. Keep it idempotent; note that re-seeding resets stock to the seed quantities. It loads env first, then dynamically imports `@/db` (which reads `DATABASE_URL` when imported), and calls `pool.end()` at the end so the process exits.
 - `next build` queries the catalog, so a fresh database needs `db:migrate` and `db:seed` before a build succeeds.
 
 ## Architecture
@@ -62,7 +62,7 @@ Customer account: `/account` (redirects to `/account/sign-in` when signed out), 
 - **Better Auth tables are generated, not handwritten.** `npm run auth:generate` produces `src/db/schema/auth.ts` (`user`, `session`, `account`, `verification`) from the config in `src/lib/auth.ts`; never edit it by hand. Re-run it after adding Better Auth plugins or options that change tables, then `db:generate` + `db:migrate`. If the generated schema and the database drift apart, the build logs a "Drizzle schema mismatch" error.
 - **Env access.** Server code reads env through `env` in `src/lib/env.ts`, whose lazy getters throw a named error when a variable is missing. It is server-only; never import it (or `src/lib/auth.ts`, `src/db`) from client components.
 - **Env loading differs per tool.** Next.js loads `.env*` itself; drizzle-kit loads it via `@next/env`'s `loadEnvConfig` in `drizzle.config.ts`; the `auth` CLI loads `.env` / `.env.local` through its own config loader.
-- **Neon HTTP driver** (`drizzle-orm/neon-http`): stateless, no interactive transactions. Better Auth's Postgres path does not need them (adapter `transaction` defaults to false). Anything that needs `db.transaction` (e.g. checkout/order writes) requires switching `src/db/index.ts` to `drizzle-orm/neon-serverless` with a WebSocket `Pool`.
+- **Neon WebSocket driver** (`drizzle-orm/neon-serverless` with a `Pool` from `@neondatabase/serverless`, using the runtime's global WebSocket, Node 22+). Supports interactive transactions: use `db.transaction` with `.for("update")` row locks for read-check-write changes such as stock (no raw `sql` needed). There is no `db.batch` on this driver. The pool is created once (cached on `globalThis` in dev for hot reloads), connects lazily, and logs idle-connection errors instead of crashing. Scripts that import `@/db` must `await pool.end()` to exit.
 - **`nextCookies()`** must remain the last entry in Better Auth's `plugins` array so Server Actions can set auth cookies.
 
 ## Gotchas
