@@ -69,6 +69,33 @@ export async function getProductsBySlugs(slugs: string[]): Promise<Product[]> {
   return inSlugOrder(rows.flatMap((row) => toProduct(row) ?? []), slugs);
 }
 
+/** Most recently added products first. */
+export async function getLatestProducts(limit = 24): Promise<Product[]> {
+  const rows = await db.query.products.findMany({ with: withRelations, orderBy: productOrder, limit });
+  return rows.flatMap((row) => toProduct(row) ?? []);
+}
+
+export async function getCategorySlugs(): Promise<string[]> {
+  const rows = await db.select({ slug: categories.slug }).from(categories);
+  return rows.map((row) => row.slug);
+}
+
+/** A category and its products, newest first. Deduplicated per request like `getProduct`. */
+export const getCategoryWithProducts = cache(
+  async (slug: string): Promise<{ slug: string; name: string; products: Product[] } | undefined> => {
+    const row = await db.query.categories.findFirst({
+      where: eq(categories.slug, slug),
+      with: { products: { with: withRelations, orderBy: productOrder } },
+    });
+    if (!row) return undefined;
+    return {
+      slug: row.slug,
+      name: row.name,
+      products: row.products.flatMap((product) => toProduct(product) ?? []),
+    };
+  },
+);
+
 /** Deduplicated per request, so metadata and the page share one query. */
 export const getProduct = cache(async (slug: string): Promise<Product | undefined> => {
   const row = await findProduct(slug);

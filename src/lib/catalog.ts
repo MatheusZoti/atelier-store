@@ -90,6 +90,65 @@ export const finishingTouchSlugs = [
   "luna-layered-necklace",
 ];
 
+export type CuratedCollection = { title: string; intro: string; productSlugs: string[] };
+
+/**
+ * Editorial collections served at /collections/<slug>, products in list order.
+ * A database category with the same slug wins. Slugs missing from the database are skipped.
+ */
+export const curatedCollections: Record<string, CuratedCollection> = {
+  women: {
+    title: "Women",
+    intro: "Soft leathers, sculpted jewelry and shoes made for long days.",
+    productSlugs: [
+      "lune-woven-tote",
+      "vela-croc-effect-bag",
+      "riva-structured-satchel",
+      "marea-suede-derby",
+      "fern-drop-earrings",
+      "sol-sculpted-earrings",
+      "perla-pendant",
+      "luna-layered-necklace",
+    ],
+  },
+  men: {
+    title: "Men",
+    intro: "Outerwear, leather goods and a watch to keep for life.",
+    productSlugs: [
+      "atlas-bomber-jacket",
+      "noir-leather-jacket",
+      "marea-suede-derby",
+      "sorrento-leather-backpack",
+      "porto-nylon-backpack",
+      "meridian-watch",
+    ],
+  },
+  gifts: {
+    title: "Gifts",
+    intro: "Considered pieces to give, wrapped by hand in our signature box.",
+    productSlugs: [
+      "perla-pendant",
+      "sol-sculpted-earrings",
+      "luna-layered-necklace",
+      "fern-drop-earrings",
+      "meridian-watch",
+      "lune-woven-tote",
+    ],
+  },
+  "autumn-winter": {
+    title: "Autumn – Winter",
+    intro: "The Quiet Season: warm leathers and layered outerwear in muted tones.",
+    productSlugs: [
+      "atlas-bomber-jacket",
+      "noir-leather-jacket",
+      "marea-suede-derby",
+      "sorrento-leather-backpack",
+      "riva-structured-satchel",
+      "vela-croc-effect-bag",
+    ],
+  },
+};
+
 export const hero = {
   eyebrow: "Autumn – Winter",
   title: "The Quiet Season",
