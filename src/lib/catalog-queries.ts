@@ -7,7 +7,8 @@ import { db } from "@/db";
 import { categories, productImages, products } from "@/db/schema";
 import type { Category, Product } from "@/lib/catalog";
 
-const withRelations = {
+/** Relations every `toProduct` row needs (also used by the cart in src/lib/cart.ts). */
+export const withRelations = {
   category: true,
   stock: true,
   images: { orderBy: asc(productImages.position) },
@@ -21,7 +22,7 @@ function findProduct(slug: string) {
 }
 
 /** Maps a row to a `Product`. Products without images are skipped (returns undefined). */
-function toProduct(row: ProductRow): Product | undefined {
+export function toProduct(row: ProductRow): Product | undefined {
   const images = row.images.map((image) => ({ src: image.url, alt: image.alt }));
   if (images.length === 0) {
     console.warn(`Product "${row.slug}" has no images and is hidden from the storefront.`);

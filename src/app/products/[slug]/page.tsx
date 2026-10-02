@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { addToBag } from "@/app/bag/actions";
+import { AddToBag } from "@/components/bag/add-to-bag";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
 import { Disclosure } from "@/components/product/disclosure";
@@ -111,11 +113,14 @@ export default async function ProductPage({ params }: PageProps<"/products/[slug
             aria-label="Purchase"
             className="flex flex-col gap-6 lg:sticky lg:top-8 lg:col-span-5 lg:col-start-8 lg:row-span-2 lg:row-start-1 lg:self-start xl:col-span-4 xl:col-start-9"
           >
-            {/* TODO: wire to the cart once it exists. */}
-            <Button block disabled={soldOut}>
-              <BagIcon width={16} height={16} />
-              {soldOut ? "Out of stock" : "Add to bag"}
-            </Button>
+            {soldOut ? (
+              <Button block disabled>
+                <BagIcon width={16} height={16} />
+                Out of stock
+              </Button>
+            ) : (
+              <AddToBag action={addToBag.bind(null, product.slug)} />
+            )}
             {soldOut && (
               <p className="-mt-2 text-body-sm text-muted">
                 This piece is currently unavailable online. Our client advisors can check availability in store.

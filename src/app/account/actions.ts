@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/lib/auth";
+import { mergeGuestCart } from "@/lib/cart";
 import { env } from "@/lib/env";
 import { getSession } from "@/lib/session";
 
@@ -45,6 +46,15 @@ function authErrorMessage(error: unknown, fallback: string) {
   }
 }
 
+/** Moves a guest bag into the account. Never blocks signing in if it fails. */
+async function keepGuestBag(userId: string) {
+  try {
+    await mergeGuestCart(userId);
+  } catch (error) {
+    console.error("[cart] could not merge the guest bag:", error);
+  }
+}
+
 // nextCookies() in src/lib/auth.ts sets the session cookie from these actions.
 
 export async function signIn(_state: AuthFormState, formData: FormData): Promise<AuthFormState> {
@@ -54,11 +64,14 @@ export async function signIn(_state: AuthFormState, formData: FormData): Promise
     return { email, error: "Please enter your email and password." };
   }
 
+  let userId: string;
   try {
-    await auth.api.signInEmail({ body: { email, password }, headers: await headers() });
+    const result = await auth.api.signInEmail({ body: { email, password }, headers: await headers() });
+    userId = result.user.id;
   } catch (error) {
     return { email, error: authErrorMessage(error, "We couldn't sign you in. Please try again.") };
   }
+  await keepGuestBag(userId);
   redirect("/account");
 }
 
@@ -70,14 +83,17 @@ export async function signUp(_state: AuthFormState, formData: FormData): Promise
     return { name, email, error: "Please fill in every field." };
   }
 
+  let userId: string;
   try {
-    await auth.api.signUpEmail({
+    const result = await auth.api.signUpEmail({
       body: { name, email, password, callbackURL: VERIFIED_URL },
       headers: await headers(),
     });
+    userId = result.user.id;
   } catch (error) {
     return { name, email, error: authErrorMessage(error, "We couldn't create your account. Please try again.") };
   }
+  await keepGuestBag(userId);
   redirect("/account");
 }
 

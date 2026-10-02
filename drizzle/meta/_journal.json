@@ -15,6 +15,13 @@
       "when": 1790950818921,
       "tag": "0001_faulty_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790972623070,
+      "tag": "0002_silky_captain_universe",
+      "breakpoints": true
     }
   ]
 }

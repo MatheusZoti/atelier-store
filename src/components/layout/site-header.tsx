@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { BagIcon, MenuIcon, PlusIcon, SearchIcon } from "@/components/ui";
+import { BagLink } from "@/components/bag/bag-count";
+import { MenuIcon, PlusIcon, SearchIcon } from "@/components/ui";
 import { cx } from "@/lib/cx";
 
 import { AccountIconLink, AccountMenuLink } from "./account-links";
@@ -50,9 +51,8 @@ export function SiteHeader({ overlay }: SiteHeaderProps) {
             <SearchIcon />
           </Link>
           <AccountIconLink className={cx(iconLink, "hidden sm:inline-flex")} />
-          <Link href="/bag" aria-label="Shopping bag" className={cx(iconLink, "inline-flex")}>
-            <BagIcon />
-          </Link>
+          {/* min-width instead of a fixed size, so a two-digit count fits beside the icon */}
+          <BagLink className="inline-flex h-10 min-w-10 items-center justify-center" />
 
           <details className="group">
             <summary className="flex h-10 cursor-pointer list-none items-center gap-2 pl-2 text-label font-semibold uppercase [&::-webkit-details-marker]:hidden">

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Atelier Store: an eCommerce app on Next.js 16 (App Router, Turbopack), React 19, TypeScript (strict), Tailwind CSS v4, Better Auth, Drizzle ORM, and Neon Postgres. The storefront home and product pages read products, categories and stock from Neon. Customers can create an account and sign in (email + password); there is no cart, checkout or orders yet.
+Atelier Store: an eCommerce app on Next.js 16 (App Router, Turbopack), React 19, TypeScript (strict), Tailwind CSS v4, Better Auth, Drizzle ORM, and Neon Postgres. The storefront home and product pages read products, categories and stock from Neon. Customers can create an account and sign in (email + password) and keep a shopping bag (guest or account); there is no checkout or orders yet.
 
 ## Commands
 
@@ -43,7 +43,8 @@ Env vars (see `.env.example`, copy to `.env.local`): `DATABASE_URL` (Neon pooled
 - Product images live only in `product_images` (`url`, `alt`, `position`, unique per product+position); the lowest `position` is the main image. A product with no image rows is hidden from the storefront.
 - Money is integer cents (`price_cents`), USD. Rows are addressed by unique `slug`; ids are uuids.
 - `product_stock.quantity` has no `CHECK (>= 0)` because that needs `sql`. Keep it non-negative in app code.
-- Keep the catalog minimal until asked: no variants, carts, orders, reviews or wishlists.
+- Cart tables (`src/db/schema/cart.ts`): `carts` (`user_id` unique, nullable for guests, `onDelete: cascade`) 1─* `cart_items` (one row per product, unique cart+product, cascade from both cart and product). Quantity is kept between 1 and `min(stock, MAX_LINE_QUANTITY)` in app code.
+- Keep the catalog minimal until asked: no variants, orders, reviews or wishlists.
 - Seed (`src/db/seed`) upserts row by row by slug with explicit `set` values (no `excluded.*`, which needs `sql`) inside one `db.transaction`, so it applies fully or not at all. Keep it idempotent; note that re-seeding resets stock to the seed quantities. It loads env first, then dynamically imports `@/db` (which reads `DATABASE_URL` when imported), and calls `pool.end()` at the end so the process exits.
 - `next build` queries the catalog, so a fresh database needs `db:migrate` and `db:seed` before a build succeeds.
 
@@ -57,6 +58,11 @@ Customer account: `/account` (redirects to `/account/sign-in` when signed out), 
 - **Password reset**: links expire after 30 minutes and are single-use; resetting signs the customer out everywhere. The forgot-password form always shows the same reply so it never reveals whether an account exists.
 - **Email verification** is sent on sign-up but not required to sign in. Links land on `/account?verified=1` (Better Auth appends `&error=…` for bad links); `/account` shows a resend prompt while unverified.
 - **Header session state** is client-side (`src/components/layout/account-links.tsx`, `authClient.useSession()`) so catalog pages stay prerendered. A Server Action sign-in doesn't update that client cache, so `/account` renders `<SessionRefresh />`; sign-out runs in the browser (`authClient.signOut()`) for the same reason.
+
+Shopping bag: all reads and writes go through `src/lib/cart.ts` (server-only). Signed-in customers use their account cart; guests get a cart found through the httpOnly `cart_id` cookie (created on first add). `signIn` / `signUp` in `src/app/account/actions.ts` call `mergeGuestCart()` (quantities summed, capped at the line limit; never blocks sign-in). Bag changes run in `db.transaction` after locking the cart row, so double clicks don't lose updates.
+
+- **Bag UI**: product pages post to `addToBag` (bound to the slug) in `src/app/bag/actions.ts`; `/bag` is dynamic and its steppers call `updateBagQuantity` (which calls `refresh()`). The header count (`src/components/bag/bag-count.tsx`) is client-side, fetched from `GET /api/bag` on mount and when the session user changes, and updated from the `count` every bag action returns (`setBagCount`).
+- **Not yet enforced**: stock is only a cap on bag quantities; nothing is reserved until checkout (Phase 4/5).
 
 - **Single schema barrel.** `src/db/schema/index.ts` re-exports every table file. It is consumed by three things: the runtime `db` client, the Better Auth Drizzle adapter, and drizzle-kit (`drizzle.config.ts` points at the `src/db/schema` folder). New tables go in their own file in that folder and must be re-exported from the barrel.
 - **Better Auth tables are generated, not handwritten.** `npm run auth:generate` produces `src/db/schema/auth.ts` (`user`, `session`, `account`, `verification`) from the config in `src/lib/auth.ts`; never edit it by hand. Re-run it after adding Better Auth plugins or options that change tables, then `db:generate` + `db:migrate`. If the generated schema and the database drift apart, the build logs a "Drizzle schema mismatch" error.
@@ -92,5 +98,5 @@ Customer account: `/account` (redirects to `/account/sign-in` when signed out), 
 - Stock state (in stock / only N left / out of stock) comes from `getStockState()`; the low-stock threshold is `LOW_STOCK_THRESHOLD`.
 - `/` and `/products/[slug]` are prerendered from the DB at build time with `revalidate = 60` (ISR). Product slugs come from `generateStaticParams`; new products render on first visit and unknown slugs 404. The product gallery shows every image in `product.images`; with only one (as all sample products have for now) it shows the photo plus a scaled close-up crop of it.
 - `/collections/new-arrivals` lists the latest products. `/collections/[category]` serves a database category by slug, else a `curatedCollections` entry from `catalog.ts` (editorial title, intro, hand-picked slugs: women, men, gifts, autumn-winter); unknown slugs 404. Both use `ProductListing`.
-- "Add to bag" is not wired to anything yet (no cart). Bag, service, story and footer links (e.g. `/account/orders`) still point to routes that don't exist.
+- Checkout on `/bag` is a disabled placeholder until orders and Stripe exist. Service, story and footer links (e.g. `/account/orders`) still point to routes that don't exist.
 - The header's `overlay` variant sits on top of a full-bleed hero; other pages should render `<SiteHeader />` without it.
