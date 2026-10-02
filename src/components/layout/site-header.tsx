@@ -1,8 +1,9 @@
 import Link from "next/link";
 
-import { BagIcon, MenuIcon, PlusIcon, SearchIcon, UserIcon } from "@/components/ui";
+import { BagIcon, MenuIcon, PlusIcon, SearchIcon } from "@/components/ui";
 import { cx } from "@/lib/cx";
 
+import { AccountIconLink, AccountMenuLink } from "./account-links";
 import { Wordmark } from "./wordmark";
 
 const menuLinks = [
@@ -11,7 +12,8 @@ const menuLinks = [
   { label: "Men", href: "/collections/men" },
   { label: "Handbags", href: "/collections/handbags" },
   { label: "Shoes", href: "/collections/shoes" },
-  { label: "Jewelry & watches", href: "/collections/jewelry" },
+  { label: "Jewelry", href: "/collections/jewelry" },
+  { label: "Watches", href: "/collections/watches" },
   { label: "Gifts", href: "/collections/gifts" },
 ];
 
@@ -47,9 +49,7 @@ export function SiteHeader({ overlay }: SiteHeaderProps) {
           <Link href="/search" aria-label="Search" className={cx(iconLink, "hidden sm:inline-flex")}>
             <SearchIcon />
           </Link>
-          <Link href="/account" aria-label="Account" className={cx(iconLink, "hidden sm:inline-flex")}>
-            <UserIcon />
-          </Link>
+          <AccountIconLink className={cx(iconLink, "hidden sm:inline-flex")} />
           <Link href="/bag" aria-label="Shopping bag" className={cx(iconLink, "inline-flex")}>
             <BagIcon />
           </Link>
@@ -69,6 +69,10 @@ export function SiteHeader({ overlay }: SiteHeaderProps) {
                     </Link>
                   </li>
                 ))}
+                {/* The account icon is hidden below sm, so the menu carries the link there. */}
+                <li className="border-t pt-5 sm:hidden">
+                  <AccountMenuLink className="link-quiet text-lead" />
+                </li>
               </ul>
             </div>
           </details>

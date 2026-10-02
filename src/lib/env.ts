@@ -19,4 +19,11 @@ export const env = {
   get BETTER_AUTH_URL() {
     return required("BETTER_AUTH_URL");
   },
+  get RESEND_API_KEY() {
+    return required("RESEND_API_KEY");
+  },
+  /** Sender, e.g. `Atelier <hello@example.com>`. Must be on a domain verified in Resend. */
+  get EMAIL_FROM() {
+    return required("EMAIL_FROM");
+  },
 };

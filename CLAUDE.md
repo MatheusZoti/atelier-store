@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Atelier Store: an eCommerce app on Next.js 16 (App Router, Turbopack), React 19, TypeScript (strict), Tailwind CSS v4, Better Auth, Drizzle ORM, and Neon Postgres. The storefront home and product pages read products, categories and stock from Neon; there is no cart, checkout, orders or sign-in UI yet.
+Atelier Store: an eCommerce app on Next.js 16 (App Router, Turbopack), React 19, TypeScript (strict), Tailwind CSS v4, Better Auth, Drizzle ORM, and Neon Postgres. The storefront home and product pages read products, categories and stock from Neon. Customers can create an account and sign in (email + password); there is no cart, checkout or orders yet.
 
 ## Commands
 
@@ -25,7 +25,7 @@ npm run db:seed        # upsert sample categories/products/stock (src/db/seed), 
 
 There is no test runner configured yet.
 
-Env vars (see `.env.example`, copy to `.env.local`): `DATABASE_URL` (Neon pooled connection string), `BETTER_AUTH_SECRET` (`npx auth secret`), `BETTER_AUTH_URL`. `next build` imports the auth route module, so these must be set for a build to succeed.
+Env vars (see `.env.example`, copy to `.env.local`): `DATABASE_URL` (Neon pooled connection string), `BETTER_AUTH_SECRET` (`npx auth secret`), `BETTER_AUTH_URL`, `RESEND_API_KEY`, `EMAIL_FROM` (sender on a domain verified in Resend; `onboarding@resend.dev` for testing, which only delivers to the Resend account owner). `next build` imports the auth route module, so these must be set for a build to succeed.
 
 ## Storefront
 
@@ -51,6 +51,13 @@ Env vars (see `.env.example`, copy to `.env.local`): `DATABASE_URL` (Neon pooled
 
 Request flow for auth: `authClient` (`src/lib/auth-client.ts`, same-origin) → `src/app/api/auth/[...all]/route.ts` (`toNextJsHandler(auth)`) → `auth` in `src/lib/auth.ts` → `drizzleAdapter(db, { provider: "pg", schema })` → `db` in `src/db/index.ts` → Neon.
 
+Customer account: `/account` (redirects to `/account/sign-in` when signed out), `/account/sign-in`, `/account/sign-up`, `/account/forgot-password`, `/account/reset-password`. Forms post to Server Actions in `src/app/account/actions.ts`, which call `auth.api.*`; `nextCookies()` sets the session cookie. Read the session in Server Components with `getSession()` from `src/lib/session.ts`.
+
+- **Email** goes through `sendEmail()` in `src/lib/email.ts` (Resend). It never throws; in development without `RESEND_API_KEY` it prints the email to the server log.
+- **Password reset**: links expire after 30 minutes and are single-use; resetting signs the customer out everywhere. The forgot-password form always shows the same reply so it never reveals whether an account exists.
+- **Email verification** is sent on sign-up but not required to sign in. Links land on `/account?verified=1` (Better Auth appends `&error=…` for bad links); `/account` shows a resend prompt while unverified.
+- **Header session state** is client-side (`src/components/layout/account-links.tsx`, `authClient.useSession()`) so catalog pages stay prerendered. A Server Action sign-in doesn't update that client cache, so `/account` renders `<SessionRefresh />`; sign-out runs in the browser (`authClient.signOut()`) for the same reason.
+
 - **Single schema barrel.** `src/db/schema/index.ts` re-exports every table file. It is consumed by three things: the runtime `db` client, the Better Auth Drizzle adapter, and drizzle-kit (`drizzle.config.ts` points at the `src/db/schema` folder). New tables go in their own file in that folder and must be re-exported from the barrel.
 - **Better Auth tables are generated, not handwritten.** `npm run auth:generate` produces `src/db/schema/auth.ts` (`user`, `session`, `account`, `verification`) from the config in `src/lib/auth.ts`; never edit it by hand. Re-run it after adding Better Auth plugins or options that change tables, then `db:generate` + `db:migrate`. If the generated schema and the database drift apart, the build logs a "Drizzle schema mismatch" error.
 - **Env access.** Server code reads env through `env` in `src/lib/env.ts`, whose lazy getters throw a named error when a variable is missing. It is server-only; never import it (or `src/lib/auth.ts`, `src/db`) from client components.
@@ -63,6 +70,7 @@ Request flow for auth: `authClient` (`src/lib/auth-client.ts`, same-origin) → 
 - Don't add `import "server-only"` to `src/lib/auth.ts`, `src/lib/env.ts`, or `src/db/*`: the `auth` CLI loads `auth.ts` outside Next.js and that import throws there.
 - The Better Auth CLI package is `auth` (matches `better-auth` versions), not the stale `@better-auth/cli`.
 - Next.js 16 renamed middleware to `proxy.ts`; check `node_modules/next/dist/docs/01-app/01-getting-started/16-proxy.md` before adding route protection.
+- Don't run `npm run build` while `npm run dev` is running from the same folder: the build overwrites `.next` and the dev server's workers crash (pages may still render while `/api/*` returns 500). Stop the dev server first and restart it afterwards.
 - Tailwind v4 is configured in CSS (`src/app/globals.css`); there is no `tailwind.config` file.
 
 ## Design system
@@ -83,5 +91,6 @@ Request flow for auth: `authClient` (`src/lib/auth-client.ts`, same-origin) → 
 - Sample images come from Unsplash's CDN through `next/image`. `images.remotePatterns` in `next.config.ts` pins the exact query string (`?w=2400&q=80&fm=jpg&fit=max`) that `unsplash()` in `catalog.ts` appends; a different query returns 400. `images.qualities` is `[75]` (Next 16 requires an allowlist).
 - Stock state (in stock / only N left / out of stock) comes from `getStockState()`; the low-stock threshold is `LOW_STOCK_THRESHOLD`.
 - `/` and `/products/[slug]` are prerendered from the DB at build time with `revalidate = 60` (ISR). Product slugs come from `generateStaticParams`; new products render on first visit and unknown slugs 404. The product gallery shows every image in `product.images`; with only one (as all sample products have for now) it shows the photo plus a scaled close-up crop of it.
-- "Add to bag" is not wired to anything yet (no cart). Collection, bag, account and service links still point to routes that don't exist.
+- `/collections/new-arrivals` lists the latest products. `/collections/[category]` serves a database category by slug, else a `curatedCollections` entry from `catalog.ts` (editorial title, intro, hand-picked slugs: women, men, gifts, autumn-winter); unknown slugs 404. Both use `ProductListing`.
+- "Add to bag" is not wired to anything yet (no cart). Bag, service, story and footer links (e.g. `/account/orders`) still point to routes that don't exist.
 - The header's `overlay` variant sits on top of a full-bleed hero; other pages should render `<SiteHeader />` without it.
